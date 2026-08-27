@@ -60,7 +60,7 @@ RawContentLength  : 40
 
 The full CRUD cycle was tested via `/docs` using "Try it out" for each endpoint.
 
-![Swagger UI screenshot](ui/UI.png)
+![Swagger UI screenshot](ui/UI.PNG)
 
 ## Notes
 
