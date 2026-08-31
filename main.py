@@ -61,16 +61,17 @@ def health():
 # task list
 @app.get("/tasks", summary="View all tasks")
 def get_tasks():
-    return tasks
+    with Session(engine) as session:
+        return session.exec(select(Task)).all()
 
 # specific task
 @app.get("/tasks/{task_id}", summary="View a task by ID")
 def get_task(task_id : int):
-    for task in tasks:
-        if task ["id"] == task_id:
-            return task
-
-    raise HTTPException(status_code=404, detail=f"Task{task_id} not found")
+    with Session(engine) as session:
+        task = session.get(Task, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail=f"Task{task_id} not found")
+        return task
 
 
 # create new task
