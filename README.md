@@ -1,10 +1,10 @@
 # Task API
 
-A small CRUD API for managing a to-do list, built with FastAPI. Supports creating, reading, updating, and deleting tasks — no database yet, everything lives in memory.
+A small CRUD API for managing a to-do list, built with FastAPI. Supports creating, reading, updating, and deleting tasks — data is stored persistently in a SQLite database.
 
 ## What this is
 
-This API lets you manage a list of tasks through HTTP requests. It was built as part of the FlyRank AI internship (Week 2, Assignment BE-01) to practice the core CRUD pattern that shows up in almost every backend.
+This API lets you manage a list of tasks through HTTP requests. It was built as part of the FlyRank AI internship Assignment BE-01 (CRUD basics) and W3 · A1 (connecting to a real database) to practice the core CRUD pattern that shows up in almost every backend, and the separation between an API and its storage layer.
 
 ## How to install & run
 
@@ -14,11 +14,16 @@ cd first_API
 python -m venv venv
 venv\Scripts\activate        # Windows
 # source venv/bin/activate   # Mac/Linux
-pip install fastapi uvicorn
+pip install fastapi uvicorn sqlmodel
 uvicorn main:app --reload
 ```
 
 The server runs at `http://localhost:8000`. Interactive docs are available at `http://localhost:8000/docs`.
+
+## Database
+
+- **Why SQLite:** it needs no separate server or installation — the whole database lives in a single file, which is ideal for a small project like this while still using real SQL underneath.
+- **Where it lives:** `tasks.db`, created automatically in the project root the first time the app runs. The `tasks` table is created automatically if it doesn't exist, and is seeded with 3 example tasks only on the very first run — restarting the server no longer resets your data.
 
 ## Endpoints
 
@@ -60,8 +65,19 @@ RawContentLength  : 40
 
 The full CRUD cycle was tested via `/docs` using "Try it out" for each endpoint.
 
-![Swagger UI screenshot](ui/UI.PNG)
+![Swagger UI screenshot](screenshots/UI.PNG)
+
+## Exploring the database directly
+
+Opened `tasks.db` in DB Browser for SQLite and ran queries directly against the table, confirming the API reflects manual database changes immediately. Example query:
+
+```sql
+SELECT * FROM tasks WHERE done = 1;
+```
+
+![Database viewer screenshot](screenshots/sql.PNG)
 
 ## Notes
 
-- Data is stored in memory only — restarting the server resets the task list back to the 3 seed tasks. This is intentional for this stage; a real database comes in the following week's assignment.
+- Data now persists in `tasks.db` (SQLite) , restarting the server no longer resets the task list. The 3 example tasks are only inserted once, the first time the database is created.
+- Earlier version of this project stored tasks in memory only (a plain Python list); this was replaced with SQLite while keeping every API endpoint identical , proving that storage is an implementation detail behind the API, not part of the API's contract.
