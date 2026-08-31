@@ -2,6 +2,31 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
+from sqlmodel import SQLModel, Field, create_engine, Session, select
+
+# ----DATABASE----
+
+# task row schema
+class Task(SQLModel, table = True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title:str
+    done: bool = False
+
+engine = create_engine("sqlite:///tasks.db")
+
+def create_db_and_seed():
+    # create the table if missing
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        existing = session.exec(select(Task)).first()
+        if not existing:
+            session.add(Task(title = "Buy milk", done=False))
+            session.add(Task(title = "Walk the dog", done=False))
+            session.add(Task(title = "Finish assignment", done=True))
+            session.commit()
+create_db_and_seed()
+
+
 app = FastAPI()
 
 tasks = [
