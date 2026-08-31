@@ -90,22 +90,32 @@ def create_task(new_task: CreateTask):
 # Update / Edit task
 @app.put("/tasks/{task_id}", summary="Update a task")
 def update_task(task_id: int, update : UpdateTask):
-    for task in tasks:
-        if task["id"] == task_id:
-            if update.title is not None:
-                if not update.title.strip():
-                    raise HTTPException(status_code=400, detail = "Title cannot be empty")
-                task["title"] = update.title
-            if update.done is not None:
-                task["done"] = update.done
-            return task
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    with Session(engine) as session:
+        task = session.get(Task, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail=f"Task{task_id} not found")
+
+        if update.title is not None:
+            if not update.title.strip():
+                raise HTTPException(status_code=400, detail="Title cannot be empty")
+            task.title = update.title
+        if update.done is not None:
+            task.done = update.done
+
+        session.add(task)
+        session.commit()
+        session.refresh(task)
+
+        return task
 
 
 # delete  task
 @app.delete("/tasks/{task_id}", status_code=204, summary="Delete task")
 def delete_task(task_id : int):
-    for task in tasks:
-        if task["id"] == task_id:
-            tasks.remove(task)
-            return 
+    with Session(engine) as session:
+        task = session.get(Task, task_id)
+        if not task:
+            raise HTTPException(status_code= 404, detail=f"Task {task_id} not found!")
+        session.delete(task)
+        session.commit()
+        
