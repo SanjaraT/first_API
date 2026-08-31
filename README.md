@@ -1,29 +1,49 @@
 # Task API
 
-A small CRUD API for managing a to-do list, built with FastAPI. Supports creating, reading, updating, and deleting tasks — data is stored persistently in a SQLite database.
+A small CRUD API for managing a to-do list, built with FastAPI. Data is stored persistently in Postgres, running in Docker alongside the app itself.
 
 ## What this is
 
-This API lets you manage a list of tasks through HTTP requests. It was built as part of the FlyRank AI internship Assignment BE-01 (CRUD basics) and W3 · A1 (connecting to a real database) to practice the core CRUD pattern that shows up in almost every backend, and the separation between an API and its storage layer.
+This API lets you manage a list of tasks through HTTP requests. It was built as part of the FlyRank AI internship Assignment BE-01 (CRUD basics), W3 · A1 (SQLite persistence), and the Postgres/Docker assignment that followed to practice CRUD, the separation between an API and its storage layer, and running a full app + database stack with one command.
 
-## How to install & run
+## How to run (Docker - recommended)
 
 ```bash
 git clone https://github.com/SanjaraT/first_API
 cd first_API
+cp .env.example .env   # then fill in your own values if needed
+docker compose up
+```
+
+This starts both the API and a Postgres database together. The API is available at `http://localhost:8000`, with interactive docs at `http://localhost:8000/docs`.
+
+## How to run (without Docker)
+
+```bash
 python -m venv venv
 venv\Scripts\activate        # Windows
 # source venv/bin/activate   # Mac/Linux
-pip install fastapi uvicorn sqlmodel
+pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-The server runs at `http://localhost:8000`. Interactive docs are available at `http://localhost:8000/docs`.
+Requires a running Postgres instance and a `.env` file with a valid `DATABASE_URL` (see `.env.example`).
+
+## Architecture
+
+The project is split into two layers:
+
+- **`main.py`** - the API layer. Defines routes, handles HTTP status codes and input validation.
+- **`repository.py`** - the data layer. Every database operation (create, read, update, delete) lives here, with no knowledge of HTTP at all.
+
+Routes call the repository; they never talk to the database directly. This means the entire storage backend was swapped from an in-memory list, to SQLite, to Postgres across this project's history and `main.py`'s routes never changed. Only `repository.py` changed each time.
 
 ## Database
 
-- **Why SQLite:** it needs no separate server or installation — the whole database lives in a single file, which is ideal for a small project like this while still using real SQL underneath.
-- **Where it lives:** `tasks.db`, created automatically in the project root the first time the app runs. The `tasks` table is created automatically if it doesn't exist, and is seeded with 3 example tasks only on the very first run — restarting the server no longer resets your data.
+- **Where it runs:** Postgres, in its own Docker container, defined in `docker-compose.yml`.
+- **Persistence:** the container uses a named Docker volume (`pgdata`), so data survives both app restarts and full container restarts  it is not lost when `docker compose down` (without `-v`) is run.
+- **Connection string:** read from `.env` (gitignored). A `.env.example` with placeholder values is committed instead, so the required variables are documented without exposing real credentials.
+- **Table creation:** the `tasks` table and its 3 seed rows are created automatically on first startup, the same as in the SQLite version — nothing needs to be created manually.
 
 ## Endpoints
 
@@ -67,6 +87,13 @@ The full CRUD cycle was tested via `/docs` using "Try it out" for each endpoint.
 
 ![Swagger UI screenshot](screenshots/UI.PNG)
 
+## Proving persistence across a restart
+
+1. Started the stack with `docker compose up` and created several tasks via Swagger.
+2. Stopped everything with `docker compose down` (without `-v`, so the `pgdata` volume was preserved).
+3. Restarted with `docker compose up`.
+4. Called `GET /tasks` again  all previously created tasks were still present, confirming the database volume survives a full app + container restart, not just an app-only restart.
+
 ## Exploring the database directly
 
 Opened `tasks.db` in DB Browser for SQLite and ran queries directly against the table, confirming the API reflects manual database changes immediately. Example query:
@@ -79,5 +106,5 @@ SELECT * FROM tasks WHERE done = 1;
 
 ## Notes
 
-- Data now persists in `tasks.db` (SQLite) , restarting the server no longer resets the task list. The 3 example tasks are only inserted once, the first time the database is created.
-- Earlier version of this project stored tasks in memory only (a plain Python list); this was replaced with SQLite while keeping every API endpoint identical , proving that storage is an implementation detail behind the API, not part of the API's contract.
+- The project's storage backend evolved in three stages: an in-memory Python list → SQLite (`tasks.db`) → Postgres in Docker. At every stage, only `repository.py` changed; `main.py`'s routes and their behavior stayed identical  this is the repository pattern proving itself in practice, not just in theory.
+- `.env` is gitignored; only `.env.example` (with placeholder values) is committed.
