@@ -8,6 +8,7 @@ from sqlmodel import SQLModel, Field, create_engine, Session, select
 
 # task row schema
 class Task(SQLModel, table = True):
+    __tablename__ = "tasks"
     id: Optional[int] = Field(default=None, primary_key=True)
     title:str
     done: bool = False
@@ -28,12 +29,6 @@ create_db_and_seed()
 
 
 app = FastAPI()
-
-tasks = [
-    {"id": 1, "title":"Cook lunch", "done":True },
-    {"id": 2, "title":"Go outside ", "done":False },
-    {"id": 3, "title":"Finish assignment", "done":True },
-]
 
 # pydantic schema for creating task
 class CreateTask(BaseModel):
@@ -118,4 +113,3 @@ def delete_task(task_id : int):
             raise HTTPException(status_code= 404, detail=f"Task {task_id} not found!")
         session.delete(task)
         session.commit()
-        
