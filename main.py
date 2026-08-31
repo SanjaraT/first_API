@@ -1,115 +1,57 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from dotenv import load_dotenv
+import repository
 
-from sqlmodel import SQLModel, Field, create_engine, Session, select
-
-# ----DATABASE----
-
-# task row schema
-class Task(SQLModel, table = True):
-    __tablename__ = "tasks"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    title:str
-    done: bool = False
-
-engine = create_engine("sqlite:///tasks.db")
-
-def create_db_and_seed():
-    # create the table if missing
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        existing = session.exec(select(Task)).first()
-        if not existing:
-            session.add(Task(title = "Buy milk", done=False))
-            session.add(Task(title = "Walk the dog", done=False))
-            session.add(Task(title = "Finish assignment", done=True))
-            session.commit()
-create_db_and_seed()
-
+load_dotenv()  # reads your .env file
+repository.create_db_and_seed()
 
 app = FastAPI()
 
-# pydantic schema for creating task
 class CreateTask(BaseModel):
-    title : str
+    title: str
 
-# shema for update
 class UpdateTask(BaseModel):
-    title : Optional[str] = None
-    done : Optional[bool] = None
+    title: Optional[str] = None
+    done: Optional[bool] = None
 
-
-# status
 @app.get("/", summary="API information")
 def root():
-    return {
-        "name":"Task API",
-        "version":"1.0",
-        "endpoints":["/tasks"]
-    }
+    return {"name": "Task API", "version": "1.0", "endpoints": ["/tasks"]}
 
 @app.get("/health", summary="Check API health")
 def health():
-    return {"status":"OK"}
+    return {"status": "OK"}
 
-# task list
 @app.get("/tasks", summary="View all tasks")
 def get_tasks():
-    with Session(engine) as session:
-        return session.exec(select(Task)).all()
+    return repository.get_all_tasks()
 
-# specific task
 @app.get("/tasks/{task_id}", summary="View a task by ID")
-def get_task(task_id : int):
-    with Session(engine) as session:
-        task = session.get(Task, task_id)
-        if not task:
-            raise HTTPException(status_code=404, detail=f"Task{task_id} not found")
-        return task
+def get_task(task_id: int):
+    task = repository.get_task_by_id(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    return task
 
-
-# create new task
 @app.post("/tasks", status_code=201, summary="Create a new task")
-def create_task(new_task: CreateTask):
+def create_task_route(new_task: CreateTask):
     if not new_task.title.strip():
         raise HTTPException(status_code=400, detail="Title cannot be empty")
+    return repository.create_task(new_task.title)
 
-    with Session(engine) as session:
-        task = Task(title=new_task.title, done = False)
-        session.add(task)
-        session.commit()
-        session.refresh(task)
-        return task
-
-# Update / Edit task
 @app.put("/tasks/{task_id}", summary="Update a task")
-def update_task(task_id: int, update : UpdateTask):
-    with Session(engine) as session:
-        task = session.get(Task, task_id)
-        if not task:
-            raise HTTPException(status_code=404, detail=f"Task{task_id} not found")
+def update_task_route(task_id: int, update: UpdateTask):
+    if update.title is not None and not update.title.strip():
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+    task = repository.update_task(task_id, update.title, update.done)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    return task
 
-        if update.title is not None:
-            if not update.title.strip():
-                raise HTTPException(status_code=400, detail="Title cannot be empty")
-            task.title = update.title
-        if update.done is not None:
-            task.done = update.done
-
-        session.add(task)
-        session.commit()
-        session.refresh(task)
-
-        return task
-
-
-# delete  task
 @app.delete("/tasks/{task_id}", status_code=204, summary="Delete task")
-def delete_task(task_id : int):
-    with Session(engine) as session:
-        task = session.get(Task, task_id)
-        if not task:
-            raise HTTPException(status_code= 404, detail=f"Task {task_id} not found!")
-        session.delete(task)
-        session.commit()
+def delete_task_route(task_id: int):
+    success = repository.delete_task(task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
