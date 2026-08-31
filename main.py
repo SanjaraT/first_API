@@ -80,10 +80,12 @@ def create_task(new_task: CreateTask):
     if not new_task.title.strip():
         raise HTTPException(status_code=400, detail="Title cannot be empty")
 
-    next_id = max((t["id"] for t in tasks), default=0) + 1
-    task = {"id": next_id, "title": new_task.title, "done": False}
-    tasks.append(task)
-    return task
+    with Session(engine) as session:
+        task = Task(title=new_task.title, done = False)
+        session.add(task)
+        session.commit()
+        session.refresh(task)
+        return task
 
 # Update / Edit task
 @app.put("/tasks/{task_id}", summary="Update a task")
