@@ -1,7 +1,9 @@
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 from typing import Optional
+from dotenv import load_dotenv
 import os
 
+load_dotenv() 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 class Task(SQLModel, table=True):
